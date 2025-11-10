@@ -19,9 +19,22 @@
 
 Servo gripper;
 
+// ------------------- Struct + Pointer -------------------
+// Structure to hold ultrasonic sensor data
+struct SensorData {
+  float front;
+  float left;
+  float right;
+};
+
+// Global struct and pointer
+SensorData sensors;
+SensorData* sPtr = &sensors; // pointer to struct
+
 // ------------------- Global variables -------------------
 float distance_F, distance_L, distance_R;
 bool hasObject = false;  
+
 // ------------------- Basic motor control -------------------
 void moveForward(int t) {
   digitalWrite(IN1, HIGH);
@@ -30,11 +43,6 @@ void moveForward(int t) {
   digitalWrite(IN4, LOW);
   analogWrite(ENA, 180);
   analogWrite(ENB, 180);
-  
-  // unsigned long start = millis();
-  // while (millis() - start < t) {
-  //   if (dF() < 10) break; // หยุดถ้ามีสิ่งกีดขวางใกล้เกิน
-  // }
   delay(t);
   stopMotor();
 }
@@ -50,10 +58,10 @@ void WallRight(int t) {
   unsigned long start = millis();
   while (millis() - start < t) {
     float distR = dR();
-    if (distR > 15 ) {
+    if (distR > 15) {
       break;
     }
-    delay(100); // ← ให้เวลา 0.1 วินาทีต่อรอบ
+    delay(100);
   }
   stopMotor();
 }
@@ -69,10 +77,10 @@ void WallLeft(int t) {
   unsigned long start = millis();
   while (millis() - start < t) {
     float distL = dL();
-    if (distL > 15 ) {
+    if (distL > 15) {
       break;
     }
-    delay(100); // ← ให้เวลา 0.1 วินาทีต่อรอบ
+    delay(100);
   }
   stopMotor();
 }
@@ -118,7 +126,8 @@ void stopMotor() {
   analogWrite(ENA, 0);
   analogWrite(ENB, 0);
 }
-///////////////////for hard code////////////
+
+/////////////////// for hard code ////////////
 void BackRight(int t) {
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
@@ -184,6 +193,7 @@ void FRIGHT(int t) {
   delay(t);
   stopMotor();
 }
+
 // ------------------- Ultrasonic functions -------------------
 float readDistance(int trigPin, int echoPin) {
   digitalWrite(trigPin, LOW);
@@ -197,60 +207,65 @@ float readDistance(int trigPin, int echoPin) {
   return t * 0.034 / 2.0;
 }
 
-
 float dF() { distance_F = readDistance(TRIG_F, ECHO_F); return distance_F; }
 float dL() { distance_L = readDistance(TRIG_L, ECHO_L); return distance_L; }
 float dR() { distance_R = readDistance(TRIG_R, ECHO_R); return distance_R; }
 
-// ------------------- Servo functions -------------------
-void servoGrab() {  
-  gripper.write(160);      // คีบสุด
-  delay(700);
-  moveForward(300) ;
-  stopMotor() ;
-  delay(300);
-  gripper.write(120);      // คีบสุด
-  delay(700);
-  hasObject = true;      // บันทึกสถานะว่ากำลังถือของ
+// Update struct via pointer (NEW)
+void updateSensorStruct() {
+  sPtr->front = dF();
+  sPtr->left = dL();
+  sPtr->right = dR();
 }
 
-void checkGrab(){
-  gripper.write(120);      // คีบสุด
+// ------------------- Servo functions -------------------
+void servoGrab() {  
+  gripper.write(160);
+  delay(700);
+  moveForward(300);
+  stopMotor();
+  delay(300);
+  gripper.write(120);
+  delay(700);
+  hasObject = true;
+}
+
+void checkGrab() {
+  gripper.write(120);
   delay(200);
 }
 
 void servoRelease() {
   if (hasObject) {
-    gripper.write(160);   // ค่อยๆ ปล่อย
+    gripper.write(160);
     delay(700);
-    moveBackward(500) ;
-    gripper.write(60);   // กลับตำแหน่งพัก
+    moveBackward(500);
+    gripper.write(60);
     delay(400);
-    hasObject = false;   // ไม่มีของแล้ว
+    hasObject = false;
   }
 }
 
 // ------------------- Action Plan -------------------
-enum Action { FORWARD, LEFT, RIGHT, GRAB, RELEASE, BACKWARD, CHECK,BACKL,BACKR,LONGB,LONGF,FL,FR,WallR,WallL};
-
+enum Action { FORWARD, LEFT, RIGHT, GRAB, RELEASE, BACKWARD, CHECK, BACKL, BACKR, LONGB, LONGF, FL, FR, WallR, WallL };
 
 Action planA[] = {
-  FORWARD, RIGHT, FORWARD, FORWARD, RIGHT, GRAB, BACKL, BACKL, LONGB , LEFT, LEFT, FORWARD,
-  WallL,FL, WallR, RIGHT,FR,
+  FORWARD, RIGHT, FORWARD, FORWARD, RIGHT, GRAB, BACKL, BACKL, LONGB, LEFT, LEFT, FORWARD,
+  WallL, FL, WallR, RIGHT, FR,
   FORWARD, LEFT, FORWARD, RIGHT, WallR, RIGHT, FL, RELEASE
 };
 
 Action planB[] = {
-  FORWARD, RIGHT, FORWARD, WallR, RIGHT, GRAB, BACKL, BACKL, LONGB , LEFT, LEFT, WallL, FL, 
-  WallR, RIGHT,FR,
+  FORWARD, RIGHT, FORWARD, WallR, RIGHT, GRAB, BACKL, BACKL, LONGB, LEFT, LEFT, WallL, FL,
+  WallR, RIGHT, FR,
   FORWARD, LEFT, FORWARD, RIGHT, WallR, RIGHT, FL, RELEASE
-};  
+};
 
 // ------------------- Setup -------------------
 void setup() {
   Serial.begin(9600);
 
-  // Motor
+  // Motor setup
   pinMode(ENA, OUTPUT);
   pinMode(ENB, OUTPUT);
   pinMode(IN1, OUTPUT);
@@ -258,7 +273,7 @@ void setup() {
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
 
-  // Ultrasonic
+  // Ultrasonic setup
   pinMode(TRIG_F, OUTPUT);
   pinMode(ECHO_F, INPUT);
   pinMode(TRIG_L, OUTPUT);
@@ -266,64 +281,44 @@ void setup() {
   pinMode(TRIG_R, OUTPUT);
   pinMode(ECHO_R, INPUT);
 
-  // Servo
+  // Servo setup
   gripper.attach(SERV_PIN);
-  gripper.write(60); // ตำแหน่งเปิดเริ่มต้น
+  gripper.write(60);
 
   delay(3000);
 }
 
 // ------------------- Main Loop -------------------
 void loop() {
+  // pointer to action array (POINTER topic)
+  Action* currentPlan = planA;
+
   for (int i = 0; i < sizeof(planA) / sizeof(planA[0]); i++) {
-    switch (planA[i]) {
-      case FORWARD:
-        moveForward(350);
-        break;
-      case LEFT:
-        rotateLeft(150);
-        break;
-      case RIGHT:
-        rotateRight(140);
-        break;
-      case GRAB:
-        servoGrab();
-        break;
-      case RELEASE:
-        servoRelease();
-        break;
-      case BACKWARD:
-        moveBackward(200);
-        break;
-      case CHECK:
-        checkGrab() ;
-        break ;
-      case BACKL:
-        BackLeft(200);
-        break;
-      case BACKR:
-        BackRight(350);
-        break;
-      case LONGB:
-        LongB(600);
-        break;
-      case LONGF:
-        LongF(800);
-        break;
-      case FL:
-        FLEFT(1600);
-        break;
-      case FR :
-        FRIGHT(1600);
-        break;
-      case WallR :
-        WallRight(10000);
-        break;
-      case WallL :
-        WallLeft(10000);
-        break;
+    updateSensorStruct(); // update struct data
+
+    Serial.print("Front: "); Serial.print(sPtr->front);
+    Serial.print("  Left: "); Serial.print(sPtr->left);
+    Serial.print("  Right: "); Serial.println(sPtr->right);
+
+    switch (currentPlan[i]) {
+      case FORWARD:  moveForward(350); break;
+      case LEFT:     rotateLeft(150); break;
+      case RIGHT:    rotateRight(140); break;
+      case GRAB:     servoGrab(); break;
+      case RELEASE:  servoRelease(); break;
+      case BACKWARD: moveBackward(200); break;
+      case CHECK:    checkGrab(); break;
+      case BACKL:    BackLeft(200); break;
+      case BACKR:    BackRight(350); break;
+      case LONGB:    LongB(600); break;
+      case LONGF:    LongF(800); break;
+      case FL:       FLEFT(1600); break;
+      case FR:       FRIGHT(1600); break;
+      case WallR:    WallRight(10000); break;
+      case WallL:    WallLeft(10000); break;
     }
     delay(400);
   }
+
   while (1);
 }
