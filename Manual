@@ -1,0 +1,41 @@
+import gamepad
+from cyberpi import *
+mbot2.servo_set(90,'s3')
+move_speed = 150 
+dead_zone = 10
+while True:
+    move = gamepad.get_joystick('Ly')
+    turn = gamepad.get_joystick('Lx') 
+
+    if move > dead_zone:
+        mbot2.motor_set(move_speed, 'M1')
+        mbot2.motor_set(move_speed, 'M2')
+    elif move < -dead_zone:
+        mbot2.motor_set(-move_speed, 'M1')
+        mbot2.motor_set(-move_speed, 'M2')
+    elif turn > dead_zone:
+        mbot2.motor_set(move_speed, 'M1')
+        mbot2.motor_set(-move_speed, 'M2')
+    elif turn < -dead_zone:
+        mbot2.motor_set(-move_speed, 'M1')
+        mbot2.motor_set(move_speed, 'M2')
+    else:
+        mbot2.motor_set(0, 'M1')
+        mbot2.motor_set(0, 'M2')
+
+    
+    
+    val = int((gamepad.get_joystick('Ry') + 100) * 180/200)
+    mbot2.servo_set(val, 's4')
+        
+    if gamepad.is_key_pressed('N1'):        
+        mbot2.servo_set(150,'s3')
+    elif gamepad.is_key_pressed('N2'):
+        mbot2.servo_set(80,'s3')
+        
+    if gamepad.is_key_pressed('N3'):
+        mbot2.drive_power(-100,100)
+    elif gamepad.is_key_pressed('N4'):
+        mbot2.drive_speed(100,-100)
+    else:
+        mbot2.EM_stop()
